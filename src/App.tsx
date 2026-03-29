@@ -76,6 +76,7 @@ interface OmniIdentity {
   socialLinks?: SocialLink[];
   instance?: string;
   email?: string;
+  passwordHash?: string;
   hasPassword?: boolean;
   followers: number;
   following: number;
@@ -342,15 +343,18 @@ export default function App() {
 
   // Persistence
   useEffect(() => {
+    console.log("Persistence useEffect running");
     const saved = localStorage.getItem('omni_session');
     if (saved) {
       const parsed = JSON.parse(saved);
+      console.log("Saved session:", parsed);
       setIdentity(parsed);
       setIsLoggedIn(true);
       setShowOnboarding(false);
       
       // Sync accounts
       const savedAccounts = localStorage.getItem('omni_accounts');
+      console.log("Saved accounts:", savedAccounts);
       if (savedAccounts) {
         const accs = JSON.parse(savedAccounts);
         setAccounts(accs);
@@ -430,6 +434,21 @@ export default function App() {
 
   const handleCreateAccount = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    console.log("Creating account for:", inputUser, inputEmail);
+    
+    // Check for existing account
+    const existing = accounts.find(a => a.username === inputUser || a.email === inputEmail);
+    if (existing) {
+      alert("Usuário ou e-mail já cadastrado!");
+      return;
+    }
+
+    if (!inputPass) {
+      alert("Senha é obrigatória!");
+      return;
+    }
+
     const priv = "omni_priv_" + generateKey();
     const newIdent: OmniIdentity = {
       pubkey: "omni_pub_" + generateKey(),
@@ -439,12 +458,16 @@ export default function App() {
       bio: "Novo membro da rede descentralizada OmniProto.",
       avatar: `https://picsum.photos/seed/${priv}/200/200`,
       email: inputEmail,
-      hasPassword: !!inputPass,
+      passwordHash: btoa(inputPass), // Hash simulation
+      hasPassword: true,
       followers: 0,
       following: 0,
       postsCount: 0,
       website: ""
     };
+    
+    console.log("New identity created:", newIdent);
+    
     setIdentity(newIdent);
     setIsLoggedIn(true);
     setShowOnboarding(false);
@@ -453,6 +476,7 @@ export default function App() {
     setAccounts(prev => {
       if (prev.find(a => a.pubkey === newIdent.pubkey)) return prev;
       const updated = [...prev, newIdent];
+      console.log("Accounts updated:", updated);
       localStorage.setItem('omni_accounts', JSON.stringify(updated));
       return updated;
     });
@@ -460,31 +484,29 @@ export default function App() {
 
   const handleLoginUser = (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulação: Em um app real, isso buscaria a chave criptografada no relay ou e-mail
-    const simulatedPriv = "omni_priv_recovered_" + Math.random().toString(36).substr(2, 10);
-    const newIdent: OmniIdentity = {
-      pubkey: "omni_pub_recovered_" + Math.random().toString(36).substr(2, 10),
-      privkey: simulatedPriv,
-      name: inputUser,
-      username: inputUser,
-      bio: "Logado via Usuário/Senha (Abstração OmniProto).",
-      avatar: `https://picsum.photos/seed/${inputUser}/200/200`,
-      hasPassword: true,
-      followers: 0,
-      following: 0,
-      postsCount: 0,
-      website: ""
-    };
-    setIdentity(newIdent);
-    setOnboardingStep('show_key');
-    localStorage.setItem('omni_session', JSON.stringify(newIdent));
     
-    setAccounts(prev => {
-      if (prev.find(a => a.pubkey === newIdent.pubkey)) return prev;
-      const updated = [...prev, newIdent];
-      localStorage.setItem('omni_accounts', JSON.stringify(updated));
-      return updated;
-    });
+    console.log("Attempting login for:", inputUser);
+    console.log("Accounts:", accounts);
+    
+    const user = accounts.find(a => a.username === inputUser || a.email === inputUser);
+    if (!user) {
+      alert("Usuário não encontrado!");
+      return;
+    }
+    
+    console.log("User found:", user);
+    console.log("Stored hash:", user.passwordHash);
+    console.log("Calculated hash:", btoa(inputPass));
+    
+    if (!user.passwordHash || user.passwordHash !== btoa(inputPass)) {
+      alert("Senha incorreta!");
+      return;
+    }
+    
+    setIdentity(user);
+    setIsLoggedIn(true);
+    setShowOnboarding(false);
+    localStorage.setItem('omni_session', JSON.stringify(user));
   };
 
   const handleRecovery = (e: React.FormEvent) => {
@@ -810,7 +832,16 @@ export default function App() {
                       </div>
                     </div>
                     <div className="flex flex-col gap-4">
-                      <button type="submit" className="w-full bg-[#00FF00] text-black font-bold py-3 rounded-xl">Entrar</button>
+                      <button 
+                        type="submit" 
+                        onClick={(e) => {
+                          console.log("Botão Entrar clicado");
+                          handleLoginUser(e);
+                        }}
+                        className="w-full bg-[#00FF00] text-black font-bold py-3 rounded-xl cursor-pointer relative z-50"
+                      >
+                        Entrar
+                      </button>
                       <button type="button" onClick={() => setOnboardingStep('recovery')} className="text-[10px] text-[#444] hover:text-[#00FF00] uppercase font-bold text-center">Esqueceu a senha? Recuperar via E-mail</button>
                       <button type="button" onClick={() => setOnboardingStep('welcome')} className="text-[#444] font-bold uppercase text-xs">Voltar</button>
                     </div>
@@ -2438,13 +2469,11 @@ export default function App() {
                       <div className="flex justify-between items-end w-full sm:w-auto">
                         <div className="relative">
                           <img src={identity?.avatar || `https://picsum.photos/seed/${identity?.pubkey}/200/200`} className="w-24 h-24 md:w-32 md:h-32 rounded-full border-4 border-[var(--bg)] object-cover" alt="Perfil" />
-                          <button 
-                            onClick={() => setActiveTab('settings')}
-                            className="absolute bottom-1 right-1 w-8 h-8 bg-yellow-500 rounded-full border-4 border-[var(--bg)] flex items-center justify-center text-black hover:scale-110 transition-transform"
-                            title="Editar Avatar"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
+                          {(identity?.pubkey === OMNI_GENESIS_HASH || verifyGenesisIdentity(identity?.username, identity?.email).isGenesis) && (
+                            <div className="absolute -bottom-2 -right-2 bg-yellow-500 rounded-full p-2 border-4 border-[var(--bg)]">
+                              <Shield className="w-5 h-5 text-black" />
+                            </div>
+                          )}
                         </div>
                         <button 
                           onClick={() => setActiveTab('settings')}
@@ -2455,25 +2484,38 @@ export default function App() {
                       </div>
                       
                       <div className="flex gap-4 md:gap-8 mb-2 mr-0 md:mr-4 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
-                        <div className="text-center shrink-0">
-                          <div className="text-lg font-black">{identity?.followers}</div>
-                          <div className="text-[10px] text-[#666] uppercase font-bold">Seguidores</div>
-                        </div>
-                        <div className="text-center shrink-0">
-                          <div className="text-lg font-black">{identity?.following}</div>
-                          <div className="text-[10px] text-[#666] uppercase font-bold">Seguindo</div>
-                        </div>
-                        <div className="text-center shrink-0">
-                          <div className="text-lg font-black">{identity?.postsCount}</div>
-                          <div className="text-[10px] text-[#666] uppercase font-bold">Publicações</div>
-                        </div>
+                        {(identity?.pubkey !== OMNI_GENESIS_HASH && !verifyGenesisIdentity(identity?.username, identity?.email).isGenesis) && (
+                          <>
+                            <div className="text-center shrink-0">
+                              <div className="text-lg font-black">{identity?.followers}</div>
+                              <div className="text-[10px] text-[#666] uppercase font-bold">Seguidores</div>
+                            </div>
+                            <div className="text-center shrink-0">
+                              <div className="text-lg font-black">{identity?.following}</div>
+                              <div className="text-[10px] text-[#666] uppercase font-bold">Seguindo</div>
+                            </div>
+                            <div className="text-center shrink-0">
+                              <div className="text-lg font-black">{identity?.postsCount}</div>
+                              <div className="text-[10px] text-[#666] uppercase font-bold">Publicações</div>
+                            </div>
+                          </>
+                        )}
                         <div className="hidden sm:block">
-                          <button 
-                            onClick={() => setActiveTab('settings')}
-                            className="bg-[#1A1A1A] text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border border-[#333] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all"
-                          >
-                            Editar Perfil
-                          </button>
+                          {(identity?.pubkey !== OMNI_GENESIS_HASH && !verifyGenesisIdentity(identity?.username, identity?.email).isGenesis) ? (
+                            <button 
+                              onClick={() => setActiveTab('settings')}
+                              className="bg-[#1A1A1A] text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border border-[#333] hover:border-[var(--accent)] hover:text-[var(--accent)] transition-all"
+                            >
+                              Editar Perfil
+                            </button>
+                          ) : (
+                            <button 
+                              className="bg-yellow-500 text-black text-[10px] font-black uppercase tracking-widest px-6 py-2 rounded-xl hover:bg-yellow-400 transition-all"
+                              onClick={() => window.open('https://pix.me/criador', '_blank')}
+                            >
+                              Apoie-se (Pix)
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2498,22 +2540,26 @@ export default function App() {
                       </div>
                     </div>
 
-                    <p className="mt-4 text-sm leading-relaxed">{identity?.bio}</p>
-                    
-                    <div className="mt-4 flex flex-wrap gap-4">
-                      {identity?.website && (
-                        <div className="flex items-center gap-1 text-sm text-yellow-600 font-medium">
-                          <Link className="w-3 h-3" />
-                          <a href={identity.website} target="_blank" rel="noopener noreferrer" className="hover:underline">{identity.website.replace(/^https?:\/\//, '')}</a>
+                    {(identity?.pubkey !== OMNI_GENESIS_HASH && !verifyGenesisIdentity(identity?.username, identity?.email).isGenesis) && (
+                      <>
+                        <p className="mt-4 text-sm leading-relaxed">{identity?.bio}</p>
+                        
+                        <div className="mt-4 flex flex-wrap gap-4">
+                          {identity?.website && (
+                            <div className="flex items-center gap-1 text-sm text-yellow-600 font-medium">
+                              <Link className="w-3 h-3" />
+                              <a href={identity.website} target="_blank" rel="noopener noreferrer" className="hover:underline">{identity.website.replace(/^https?:\/\//, '')}</a>
+                            </div>
+                          )}
+                          {identity?.socialLinks?.map((link, idx) => (
+                            <div key={idx} className="flex items-center gap-1 text-sm text-[#666] font-medium">
+                              {getSocialIcon(link.platform)}
+                              <a href={link.url} target="_blank" rel="noopener noreferrer" className="hover:underline">{link.platform}</a>
+                            </div>
+                          ))}
                         </div>
-                      )}
-                      {identity?.socialLinks?.map((link, idx) => (
-                        <div key={idx} className="flex items-center gap-1 text-sm text-[#666] font-medium">
-                          {getSocialIcon(link.platform)}
-                          <a href={link.url} target="_blank" rel="noopener noreferrer" className="hover:underline">{link.platform}</a>
-                        </div>
-                      ))}
-                    </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
