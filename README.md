@@ -1,3 +1,5 @@
+<img src="https://i.imgur.com/vHqQW4B.jpeg" width="300" alt="Descrição da Imagem">
+
 
 OmniProto — O Protocolo Brasileiro que Expande o Fediverso
 
