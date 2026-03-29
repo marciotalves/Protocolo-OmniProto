@@ -1,6 +1,8 @@
 servidor discord para os desenvolvedores 
 trabalharão em cima desse protocolo 
 https://discord.gg/5YQpZWdKq
+grupo público no PhizChat para desenvolvedores trabalhar no protocolo 
+https://phiz.chat/u/4RUL4MNs6yk
 
 # Run and deploy your AI Studio app
 
