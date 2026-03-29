@@ -1,0 +1,5 @@
+{
+  "name": "OmniProto - Rede Social Descentralizada",
+  "description": "Um cliente social descentralizado para o protocolo OmniProto, com comunicação baseada em relays e integração com instâncias do Fediverse. Protocolo 100% brasileiro.",
+  "requestFramePermissions": []
+}
