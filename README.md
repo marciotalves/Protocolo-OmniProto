@@ -1,3 +1,6 @@
+[![Screenshot-20260329-163448-Chrome-Beta-2.png](https://i.postimg.cc/XYXwgpf1/Screenshot-20260329-163448-Chrome-Beta-2.png)](https://postimg.cc/DSkJvfY1)
+
+
 OmniProto — O Protocolo Brasileiro que Expande o Fediverso
 
 O OmniProto é um protocolo de rede social descentralizada, criado no Brasil, que redefine a forma como plataformas sociais são construídas e conectadas. Projetado para ser flexível e universal, ele integra o melhor dos dois mundos: instâncias (servidores federados) e relays (transmissão de eventos em tempo real), permitindo uma comunicação aberta, escalável e resiliente.
